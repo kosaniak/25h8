@@ -1,16 +1,22 @@
- #!/usr/bin/python
- # -*- coding: utf-8 -*-
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from iso8601 import parse_date
 from pytz import timezone
 import urllib
 import json
 import os
 
+
 def convert_time(date):
     date = datetime.strptime(date, "%d/%m/%Y %H:%M:%S")
     return timezone('Europe/Kiev').localize(date).strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+
+
+def subtract_min_from_date(date, minutes):
+    date_obj = datetime.strptime(date.split("+")[0], '%Y-%m-%dT%H:%M:%S.%f')
+    return "{}+{}".format(date_obj - timedelta(minutes=minutes), date.split("+")[1])
 
 
 def convert_datetime_to_25h8_format(isodate):
@@ -27,7 +33,8 @@ def convert_string_from_dict_25h8(string):
         u"Відкриті торги": u"aboveThresholdUA",
         u"Відкриті торги з публікацією англ. мовою": u"aboveThresholdEU",
         u'Код ДК 021-2015 (CPV)': u'CPV',
-        u'Код ДК': u'ДК003',
+        u'Код ДК (ДК003)': u'ДК003',
+        u'Код ДК (ДК018)': u'ДК018',
         u'з урахуванням ПДВ': True,
         u'з ПДВ': True,
         u'без урахуванням ПДВ': False,
@@ -43,6 +50,8 @@ def convert_string_from_dict_25h8(string):
         u'Ні': False,
         u'на розглядi': u'pending',
         u'На розгляді': u'pending',
+        u'не вирішено(обробляється)': u'pending',
+        u'відмінено': u'cancelled',
         u'відмінена': u'cancelled',
         u'Переможець': u'active',
     }.get(string, string)
@@ -50,7 +59,6 @@ def convert_string_from_dict_25h8(string):
 
 def adapt_procuringEntity(role_name, tender_data):
     if role_name == 'tender_owner':
-        ph = tender_data['data']['procuringEntity']['contactPoint']['telephone'][-10:]
         tender_data['data']['procuringEntity']['name'] = u"Ольмек"
         tender_data['data']['procuringEntity']['address']['postalCode'] = u"01100"
         tender_data['data']['procuringEntity']['address']['region'] = u"місто Київ"
@@ -58,8 +66,10 @@ def adapt_procuringEntity(role_name, tender_data):
         tender_data['data']['procuringEntity']['address']['streetAddress'] = u"вул. Фрунзе 77"
         tender_data['data']['procuringEntity']['identifier']['legalName'] = u"Ольмек"
         tender_data['data']['procuringEntity']['identifier']['id'] = u"01234567"
-       # tender_data = adapt_delivery_data(tender_data)
-       # tender_data['data']['procuringEntity']['contactPoint']['telephone'] = "+38({}){}-{}-{}".format(ph[:3], ph[3:6], ph[6:8], ph[8:10])
+        if tender_data['data'].has_key('procurementMethodType'):
+            if "above" in tender_data['data']['procurementMethodType']:
+                tender_data['data']['tenderPeriod']['startDate'] = subtract_min_from_date(
+                    tender_data['data']['tenderPeriod']['startDate'], 1)
     return tender_data
 
 
@@ -88,8 +98,6 @@ def adapt_view_data(value, field_name):
         value = convert_time(value.split(' - ')[0])
     elif 'Date' in field_name:
         value = convert_time(value)
- #   elif 'deliveryAddress' in field_name:
- #       value = value.replace(" область", "")
     return convert_string_from_dict_25h8(value)
 
 
@@ -108,7 +116,8 @@ def get_related_elem_description(tender_data, feature, item_id):
         for elem in tender_data['data']['{}s'.format(feature['featureOf'])]:
             if feature['relatedItem'] == elem['id']:
                 return elem['description']
-    else: return item_id
+    else:
+        return item_id
 
 
 def custom_download_file(url, file_name, output_dir):
