@@ -1,12 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from iso8601 import parse_date
 from pytz import timezone
-import urllib
-import json
 import os
+import urllib
 
 
 def convert_time(date):
@@ -14,10 +13,9 @@ def convert_time(date):
     return timezone('Europe/Kiev').localize(date).strftime('%Y-%m-%dT%H:%M:%S.%f%z')
 
 
-def subtract_min_from_date(date, minutes):
-    date_obj = datetime.strptime(date.split("+")[0], '%Y-%m-%dT%H:%M:%S.%f')
-    return "{}+{}".format(date_obj - timedelta(minutes=minutes), date.split("+")[1])
-
+def convert_decision_date(date):
+    date_obj = datetime.strptime(date, "%d/%m/%Y")
+    return date_obj.strftime("%Y-%m-%d")
 
 def convert_datetime_to_25h8_format(isodate):
     iso_dt = parse_date(isodate)
@@ -25,120 +23,84 @@ def convert_datetime_to_25h8_format(isodate):
     return day_string
 
 
+def convert_date_to_template_format(date, template_in, template_out):
+    return datetime.strptime(date, template_in).strftime(template_out)
+
+
 def convert_string_from_dict_25h8(string):
     return {
-        u"грн.": u"UAH",
+        u"грн": u"UAH",
         u"True": u"1",
         u"False": u"0",
-        u"Відкриті торги": u"aboveThresholdUA",
-        u"Відкриті торги з публікацією англ. мовою": u"aboveThresholdEU",
-        u'Код ДК 021-2015 (CPV)': u'CPV',
-        u'Код ДК (ДК003)': u'ДК003',
-        u'Код ДК (ДК018)': u'ДК018',
+        u'Класифікація згідно CAV': u'CAV',
+        u'Класифікація згідно CAV-PS': u'CAV-PS',
+        u'Класифікація згідно CPV': u'CPV',
         u'з урахуванням ПДВ': True,
-        u'з ПДВ': True,
         u'без урахуванням ПДВ': False,
-        u'ОЧIКУВАННЯ ПРОПОЗИЦIЙ': u'active.tendering',
-        u'ПЕРIОД УТОЧНЕНЬ': u'active.enquiries',
-        u'АУКЦIОН': u'active.auction',
-        u'ПРЕКВАЛІФІКАЦІЯ': u'active.pre-qualification',
-        u'ОСКАРЖЕННЯ ПРЕКВАЛІФІКАЦІЇ': u'active.pre-qualification.stand-still',
-        u'вимога': u'claim',
-        u'дано відповідь': u'answered',
-        u'вирішено': u'resolved',
-        u'Так': True,
-        u'Ні': False,
-        u'на розглядi': u'pending',
-        u'На розгляді': u'pending',
-        u'не вирішено(обробляється)': u'pending',
-        u'відмінено': u'cancelled',
-        u'відмінена': u'cancelled',
-        u'Переможець': u'active',
+        u'очiкування пропозицiй': u'active.tendering',
+        u'перiод уточнень': u'active.enquires',
+        u'аукцiон': u'active.auction',
+        u'квалiфiкацiя переможця': u'active.qualification',
+        u'торги не відбулися': u'unsuccessful',
+        u'продаж завершений': u'complete',
+        u'торги скасовано': u'cancelled',
+        u'торги були відмінені.': u'active',
+        u'Юридична Інформація про Майданчики': u'x_dgfPlatformLegalDetails',
+        u'Презентація': u'x_presentation',
+        u'Договір про нерозголошення (NDA)': u'x_nda',
+        u'Публічний Паспорт Активу': u'x_dgfPublicAssetCertificate',
+        u'Технічні специфікації': u'x_technicalSpecifications',
+        u'Паспорт торгів': u'x_tenderNotice',
+        u'Повідомлення про аукціон': u'notice',
+        u'Ілюстрації': u'illustration',
+        u'Критерії оцінки': u'evaluationCriteria',
+        u'Пояснення до питань заданих учасниками': u'clarifications',
+        u'Інформація про учасників': u'bidders',
+        u'майна замовника': u'dgfOtherAssets',
+        u'очікується протокол': u'pending.verification',
+        u'на черзі': u'pending.waiting',
+        u'очікується підписання договору': u'pending.payment',
+        u'оплачено, очікується підписання договору': u'active',
+        u'рiшення скасовано': u'cancelled',
+        u'дискваліфіковано': u'unsuccessful',
     }.get(string, string)
 
 
 def adapt_procuringEntity(role_name, tender_data):
     if role_name == 'tender_owner':
-        tender_data['data']['procuringEntity']['name'] = u"Ольмек"
-        tender_data['data']['procuringEntity']['address']['postalCode'] = u"01100"
-        tender_data['data']['procuringEntity']['address']['region'] = u"місто Київ"
-        tender_data['data']['procuringEntity']['address']['locality'] = u"Київ"
-        tender_data['data']['procuringEntity']['address']['streetAddress'] = u"вул. Фрунзе 77"
-        tender_data['data']['procuringEntity']['identifier']['legalName'] = u"Ольмек"
-        tender_data['data']['procuringEntity']['identifier']['id'] = u"01234567"
-        if tender_data['data'].has_key('procurementMethodType'):
-            if "above" in tender_data['data']['procurementMethodType']:
-                tender_data['data']['tenderPeriod']['startDate'] = subtract_min_from_date(
-                    tender_data['data']['tenderPeriod']['startDate'], 1)
-    return tender_data
-
-
-def adapt_delivery_data(tender_data):
-    for index in range(len(tender_data['data']['items'])):
-        value = tender_data['data']['items'][index]['deliveryAddress']['region']
-        if value == u"місто Київ":
-            tender_data['data']['items'][index]['deliveryAddress']['region'] = u"Київ"
+        tender_data['data']['procuringEntity']['name'] = u"ТЕСТОВА КОМПАНІЯ"
     return tender_data
 
 
 def adapt_view_data(value, field_name):
-    if 'value.amount' in field_name:
+    if field_name == 'value.amount':
+        value = float(value)
+    elif field_name in ('minimalStep.amount', 'guarantee.amount'):
         value = float(value.split(' ')[0])
-    elif 'currency' in field_name:
-        value = value.split(' ')[1]
-    elif 'valueAddedTaxIncluded' in field_name:
-        value = ' '.join(value.split(' ')[2:])
-    elif 'minimalStep.amount' in field_name:
-        value = float(value.split(' ')[0])
-    elif 'unit.name' in field_name:
-        value = value.split(' ')[1]
+    elif field_name == 'tenderAttempts':
+        value = int(value)
     elif 'quantity' in field_name:
         value = float(value.split(' ')[0])
     elif 'questions' in field_name and '.date' in field_name:
         value = convert_time(value.split(' - ')[0])
     elif 'Date' in field_name:
         value = convert_time(value)
+    elif field_name == 'minNumberOfQualifiedBids':
+        value = int(value)
     return convert_string_from_dict_25h8(value)
 
 
 def adapt_view_item_data(value, field_name):
-    if 'unit.name' in field_name:
-        value = ' '.join(value.split(' ')[1:])
-    elif 'quantity' in field_name:
-        value = float(value.split(' ')[0])
-    elif 'Date' in field_name:
-        value = convert_time(value)
+    if 'quantity' in field_name:
+        value = float(value.replace(",", "."))
+    elif 'contractPeriod' in field_name:
+        value = "{}T00:00:00+02:00".format(convert_date_to_template_format(value, "%d/%m/%Y %H:%M:%S", "%Y-%m-%d"))
     return convert_string_from_dict_25h8(value)
 
 
-def get_related_elem_description(tender_data, feature, item_id):
-    if item_id == "":
-        for elem in tender_data['data']['{}s'.format(feature['featureOf'])]:
-            if feature['relatedItem'] == elem['id']:
-                return elem['description']
-    else:
-        return item_id
-
-
-def custom_download_file(url, file_name, output_dir):
-    urllib.urlretrieve(url, ('{}/{}'.format(output_dir, file_name)))
-
-
-def add_second_sign_after_point(amount):
-    amount = str(repr(amount))
-    if '.' in amount and len(amount.split('.')[1]) == 1:
-        amount += '0'
-    return amount
-
-
-def get_bid_phone(internal_id, bid_index):
-    r = urllib.urlopen('https://lb.api-sandbox.openprocurement.org/api/2.3/tenders/{}'.format(internal_id)).read()
-    tender = json.loads(r)
-    bid_id = tender['data']['qualifications'][int(bid_index)]["bidID"]
-    for bid in tender['data']['bids']:
-        if bid['id'] == bid_id:
-            return bid['tenderers'][0]['contactPoint']['telephone']
-
-
 def get_upload_file_path():
-    return os.path.join(os.getcwd(), 'src/robot_tests.broker.25h8/testFileForUpload.txt')
+    return os.path.join(os.getcwd(), 'src', 'robot_tests.broker.25h8', 'testFileForUpload.txt')
+
+
+def b25h8_download_file(url, file_name, output_dir):
+    urllib.urlretrieve(url, ('{}/{}'.format(output_dir, file_name)))
