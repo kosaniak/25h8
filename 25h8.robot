@@ -379,7 +379,7 @@ Login
   Run Keyword And Ignore Error  Дочекатися І Клікнути  xpath=//*[@id="bid-checkforunlicensed"]/..
   Click Element  xpath=//button[contains(text(), 'Відправити')]
   Wait Until Page Contains Element  xpath=//div[contains(@class,'alert-success')]
-  Run Keyword If  '${MODE}' != 'dgfInsider'  Опублікувати Пропозицію  ${status}
+  Опублікувати Пропозицію  ${status}
 
 Опублікувати Пропозицію
   [Arguments]  ${status}
