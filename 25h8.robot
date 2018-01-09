@@ -202,6 +202,7 @@ Login
 
 Оновити сторінку з тендером
   [Arguments]  ${username}  ${tender_uaid}
+  Switch Browser  ${my_alias}
   25h8.Пошук тендера по ідентифікатору  ${username}  ${tender_uaid}
 
 Внести зміни в тендер
@@ -278,6 +279,7 @@ Login
 
 Отримати інформацію із тендера
   [Arguments]  ${username}  ${tender_uaid}  ${field_name}
+  Switch Browser  ${my_alias}
   ${red}=  Evaluate  "\\033[1;31m"
   Click Element  xpath=//*[contains(@href, "tender/json/")]
   Run Keyword If  'title' in '${field_name}'  Execute Javascript  $("[data-test-id|='title']").css("text-transform", "unset")
