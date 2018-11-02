@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from iso8601 import parse_date
 import pytz
 import urllib
 import re
@@ -48,8 +49,9 @@ def convert_date_for_item(date):
 
 
 def convert_date_for_date_paid(date):
-    date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S.%f{}'.format(tz)).strftime('%d.%m.%Y %H:%M')
-    return '{}'.format(date)
+    iso_dt = parse_date(date)
+    date_string = iso_dt.strftime("%d.%m.%Y %H:%M")
+    return date_string
 
 
 def convert_date_for_auction(date):
@@ -112,7 +114,8 @@ def adapted_dictionary(value):
         u'Виконано': u'met',
         u'Не виконано': u'notMet',
         u'Завершений': u'terminated',
-        u'Не успішний': u'unsuccessful'
+        u'Не успішний': u'unsuccessful',
+        u'Приватизація об’єкта неуспішна.': u'unsuccessful'
     }.get(value, value)
 
 
