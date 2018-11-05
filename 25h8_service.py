@@ -115,6 +115,7 @@ def adapted_dictionary(value):
         u'Не виконано': u'notMet',
         u'Завершений': u'terminated',
         u'Не успішний': u'unsuccessful',
+        u'Приватизація об’єкта неуспішна': u'unsuccessful',
         u'Приватизація об’єкта неуспішна.': u'unsuccessful'
     }.get(value, value)
 
